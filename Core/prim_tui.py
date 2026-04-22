@@ -36,7 +36,7 @@ class PrimOrchestrator:
         try:
             with open(SESSION_FILE, "r") as f:
                 lines = f.readlines()
-                return "".join(lines[-20:]) # 20 dernières lignes
+                return "".join(lines[-20:])
         except: return ""
 
     def save_history(self, mission, response):
@@ -52,8 +52,6 @@ class PrimOrchestrator:
         history = self.get_history()
 
         system_prompt = f"""You are PRIM, an intelligent orchestration system created by Dax @thesystemian.
-Dax is building: Vizu (Data Storytelling), VovoEditions (KDP), and Prim3IA (this system).
-
 Analyze missions through EU (Creative), US (Logical), and CN (Pragmatic) lenses.
 Always respond in FRENCH. Use Markdown.
 
@@ -62,11 +60,7 @@ MEMORY OF SESSION:
 
 OUTPUT FORMAT:
 # [Creative Insight]
-> (1 sentence)
-# [Validation]
-> (1-2 sentences)
-# [Execution Plan]
-1. Step...
+...
 # [Final Recommendation]
 ..."""
 
@@ -77,7 +71,7 @@ OUTPUT FORMAT:
             console=console,
             transient=True,
         ) as progress:
-            task = progress.add_task("🧠 PRIM consulte sa mémoire et la Trinité...", total=None)
+            task = progress.add_task("🧠 PRIM réfléchit via la Trinité...", total=None)
             
             try:
                 payload = {
@@ -86,7 +80,7 @@ OUTPUT FORMAT:
                     "prompt": mission,
                     "stream": False
                 }
-                response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=60)
+                response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=90)
                 response.raise_for_status()
                 result = response.json().get("response", "Erreur: Pas de réponse")
                 self.save_history(mission, result)
@@ -99,33 +93,42 @@ OUTPUT FORMAT:
 
         return result, elapsed, log_file
 
-def display_tui():
+def run_mission_loop(mission_input=None):
     orchestrator = PrimOrchestrator()
-    console.print(Panel(
-        "[bold prim.title]🐉 PRIM ORCHESTRATOR v2.1[/]\n[prim.border]Intelligent Multi-Agent System (Memory Active)[/]",
-        border_style="prim.border", expand=False
-    ))
+    
+    while True:
+        if not mission_input:
+            console.print(Panel(
+                "[bold prim.title]🐉 PRIM ORCHESTRATOR v2.2[/]\n[prim.border]Intelligent Multi-Agent System[/]",
+                border_style="prim.border", expand=False
+            ))
+            try:
+                mission = console.input("[bold prim.header]prim> [/]")
+            except (EOFError, KeyboardInterrupt):
+                break
+        else:
+            mission = mission_input
 
-    if len(sys.argv) > 1:
-        mission = " ".join(sys.argv[1:])
-    else:
-        try:
-            mission = console.input("[bold prim.header]prim> [/]")
-        except EOFError: return
+        if not mission or mission.lower() in ["exit", "quit"]:
+            break
 
-    if not mission or mission.lower() in ["exit", "quit"]: return
+        result, elapsed, log_path = orchestrator.execute_mission(mission)
 
-    result, elapsed, log_path = orchestrator.execute_mission(mission)
-
-    console.print(Panel(
-        Markdown(result),
-        title=f"[prim.header]Mission: {mission}[/]",
-        border_style="prim.border",
-        subtitle=f"[prim.border]Time: {elapsed:.2f}s | Log: {os.path.basename(log_path)}[/]"
-    ))
+        # FULL DISPLAY - No truncation
+        console.print(Panel(
+            Markdown(result),
+            title=f"[prim.header]Mission: {mission}[/]",
+            border_style="prim.border",
+            subtitle=f"[prim.border]Time: {elapsed:.2f}s | Log: {os.path.basename(log_path)}[/]"
+        ))
+        
+        # Pause after mission
+        console.input("\n[prim.header]Press enter to continue...[/]")
+        
+        if mission_input: # If run with argument, exit after one mission
+            break
+        mission_input = None # Reset for loop
 
 if __name__ == "__main__":
-    try:
-        display_tui()
-    except KeyboardInterrupt:
-        console.print("\n[prim.title]Arrêt de PRIM. À bientôt.[/]")
+    initial_mission = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else None
+    run_mission_loop(initial_mission)
