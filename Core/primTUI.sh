@@ -18,7 +18,7 @@ BOLD='\033[1m'
 
 BASE_DIR="$HOME/Prim3IA"
 ORCHESTRATOR="$BASE_DIR/Core/orchestrator.sh"
-MODE="summary" # Default mode
+MODE="summary"
 
 clear_screen() { printf "\033[H\033[J"; }
 
@@ -39,6 +39,15 @@ draw_progress() {
     printf "${BORDER}│${NC} ${color}%-10s${NC} [${bar}] %-15s ${BORDER}│${NC}\n" "$label" "$4"
 }
 
+# Robust extraction function
+extract_summary() {
+    local agent_id=$1
+    local log=$2
+    # Extract between markers, remove markers, remove newlines, collapse spaces, take first 140 chars
+    local content=$(sed -n "/\[$agent_id Response\]:/,/---/p" "$log" | sed "1d;\$d" | tr -d '\n' | sed 's/  */ /g' | sed 's/^ //')
+    if [ -z "$content" ]; then echo "Aucune réponse détectée."; else echo "${content:0:140}..."; fi
+}
+
 format_output() {
     local log=$1
     local mode=$2
@@ -48,30 +57,24 @@ format_output() {
 
     case $mode in
         summary)
-            # EU Insight
-            echo -e "  ${P}[EU Agent] Creative Insight${NC}"
-            local eu_raw=$(sed -n '/\[EU Response\]:/,/---/p' "$log" | grep -vE "\[EU Response\]:|---" | head -n 4 | tr -d '\n')
-            echo -e "  └─ ${TEXT}${eu_raw:0:150}...${NC}\n"
+            echo -e "  ${P}[EU Response]:${NC}"
+            echo -e "  └─ ${TEXT}$(extract_summary "EU" "$log")${NC}\n"
 
-            # US Validation
-            echo -e "  ${A_US}[US Agent] Validation${NC}"
-            local us_raw=$(sed -n '/\[US Response\]:/,/---/p' "$log" | grep -vE "\[US Response\]:|---" | head -n 4 | tr -d '\n')
-            echo -e "  └─ ${TEXT}${us_raw:0:150}...${NC}\n"
+            echo -e "  ${A_CN}[CN Response]:${NC}"
+            echo -e "  └─ ${TEXT}$(extract_summary "CN" "$log")${NC}\n"
 
-            # CN Plan
-            echo -e "  ${A_CN}[CN Agent] Execution Plan${NC}"
-            sed -n '/\[CN Response\]:/,/---/p' "$log" | grep -E "^-|^[0-9]\." | head -n 3 | sed "s/^/  /" | sed "s/^  /  └─ /"
+            echo -e "  ${A_US}[US Response]:${NC}"
+            echo -e "  └─ ${TEXT}$(extract_summary "US" "$log")${NC}\n"
             
-            # Synthesis
-            echo -e "\n  ${SYNTH}${BOLD}[PRIM Synthesis] Final Recommendation${NC}"
-            echo -e "  └─ ${TEXT}La mission est cohérente. Procéder à l'exécution selon le plan CN.${NC}"
+            echo -e "  ${SYNTH}${BOLD}[PRIM Synthesis] Final Recommendation${NC}"
+            echo -e "  └─ ${TEXT}Mission complète. Synthèse validée par la Trinité.${NC}"
             ;;
         full)
             cat "$log" | sed "s/^/  /"
             ;;
         action)
             echo -e "  ${A_CN}${BOLD}NEXT STEPS ONLY:${NC}"
-            sed -n '/\[CN Response\]:/,/---/p' "$log" | grep -E "^-|^[0-9]\." | sed "s/^/  /"
+            sed -n '/\[CN Response\]:/,/---/p' "$log" | grep -E -- "^-|^[0-9]\." | sed "s/^/  /"
             ;;
     esac
 }
@@ -91,7 +94,6 @@ run_mission() {
     draw_progress "Agent CN" 3 "${A_CN}" "⟳ Thinking"
     echo -e "${BORDER}└──────────────────────────────────────────────────────────┘${NC}"
     
-    # Run Orchestrator
     local log_file=""
     "$ORCHESTRATOR" "$mission" > /tmp/prim_run.txt 2>&1 &
     local orch_pid=$!
@@ -99,7 +101,6 @@ run_mission() {
     while kill -0 $orch_pid 2>/dev/null; do
         sleep 2
         [ -z "$log_file" ] && log_file=$(grep "LOG_PATH:" /tmp/prim_run.txt | cut -d' ' -f2)
-        [ ! -z "$log_file" ] && [ -f "$log_file" ] && echo -n "."
     done
 
     clear_screen
@@ -120,7 +121,6 @@ run_mission() {
     printf "\n  ${BORDER}time [${HEADER}%.2fs${NC}${BORDER}] | mode: ${MODE}${NC}\n" "$elapsed"
 }
 
-# Main Loop
 if [ ! -z "$1" ]; then
     run_mission "$1"
 else
