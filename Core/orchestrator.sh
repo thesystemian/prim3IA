@@ -1,20 +1,21 @@
 #!/bin/bash
 
-# PRIM Orchestrator - CLI-first - Pure Bash
+# PRIM Orchestrator - Real Ollama Integration
 # Usage: ./Core/orchestrator.sh "Mission Name"
 
 MISSION="$1"
 TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
 DATE_FILE=$(date +"%Y%m%d_%H%M%S")
-LOG_DIR="$HOME/Prim3IA/Logs"
+BASE_DIR="$HOME/Prim3IA"
+LOG_DIR="$BASE_DIR/Logs"
 LOG_FILE="$LOG_DIR/mission_${DATE_FILE}.log"
 
 # Colors
 PURPLE='\033[0;35m'
 GREEN='\033[0;32m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Ensure Logs directory exists
 mkdir -p "$LOG_DIR"
 
 if [ -z "$MISSION" ]; then
@@ -22,31 +23,41 @@ if [ -z "$MISSION" ]; then
     exit 1
 fi
 
-# Header
-echo -e "${PURPLE}🐉 PRIM ORCHESTRATOR${NC}" | tee -a "$LOG_FILE"
-echo -e "Mission: $MISSION" | tee -a "$LOG_FILE"
-echo -e "Time   : $TIMESTAMP" | tee -a "$LOG_FILE"
+echo -e "${PURPLE}🐉 PRIM ORCHESTRATOR - REAL MISSION${NC}" | tee -a "$LOG_FILE"
+echo -e "Mission : $MISSION" | tee -a "$LOG_FILE"
+echo -e "Time    : $TIMESTAMP" | tee -a "$LOG_FILE"
 echo "------------------------------------------" | tee -a "$LOG_FILE"
 
-# Agents Execution
 execute_agent() {
-    local name=$1
-    local role=$2
-    echo -e "${PURPLE}[PRIM]${NC} Calling Agent ${GREEN}$name${NC} ($role)..." | tee -a "$LOG_FILE"
-    echo "[$TIMESTAMP] Agent $name started." >> "$LOG_FILE"
+    local id=$1
+    local name=$2
+    local model=$3
+    local prompt_file="$BASE_DIR/Config/AgentPrompts/${id}Prompt.md"
     
-    # Simulate processing
-    sleep 0.5
+    echo -e "${PURPLE}[PRIM]${NC} Calling Agent ${GREEN}$name${NC} ($model)..." | tee -a "$LOG_FILE"
     
-    echo -e "${GREEN}✓ Agent $name Success${NC}" | tee -a "$LOG_FILE"
-    echo "------------------------------------------" >> "$LOG_FILE"
+    # Read System Prompt
+    local system_prompt=$(cat "$prompt_file")
+    
+    # Call Ollama API
+    local response=$(curl -s -X POST http://localhost:11434/api/generate \
+        -d "{
+            \"model\": \"$model\",
+            \"system\": \"$(echo "$system_prompt" | sed 's/"/\\"/g' | tr -d '\n')\",
+            \"prompt\": \"$MISSION\",
+            \"stream\": false
+        }")
+    
+    local text=$(echo "$response" | jq -r '.response' 2>/dev/null || echo "Error: No response")
+    
+    echo -e "${CYAN}[$name Response]:${NC}\n$text" | tee -a "$LOG_FILE"
+    echo "------------------------------------------" | tee -a "$LOG_FILE"
 }
 
-# Run the Trinity
-execute_agent "EU" "Creative Strategy"
-execute_agent "US" "Logic & Validation"
-execute_agent "CN" "Technical Execution"
+# Run the Trinity with Real Models
+execute_agent "eu" "EU" "mistral:latest"
+execute_agent "us" "US" "mistral:latest"
+execute_agent "cn" "CN" "deepseek-coder:latest"
 
-# Final Status
-echo -e "${PURPLE}[PRIM]${NC} ${GREEN}Mission Genesis Complete.${NC}" | tee -a "$LOG_FILE"
+echo -e "${PURPLE}[PRIM]${NC} ${GREEN}First Real Mission Complete.${NC}" | tee -a "$LOG_FILE"
 echo -e "Log saved to: $LOG_FILE"
