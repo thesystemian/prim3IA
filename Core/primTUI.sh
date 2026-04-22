@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# PRIM Terminal UI (TUI) - Morandi Refined Edition
+# PRIM Terminal UI (TUI) - Async Optimized
 # Harmonic palette with high readability contrast
 
 # Morandi Refined Palette (ANSI 256 colors)
@@ -33,7 +33,7 @@ draw_header() {
 
 draw_progress() {
     local label=$1
-    local progress=$2 # 0 to 10
+    local progress=$2 
     local color=$3
     local agent_color=$4
     local bar=""
@@ -49,20 +49,40 @@ run_mission() {
     clear_screen
     draw_header
     
+    # Generate temporary log path prediction
+    local date_file=$(date +"%Y%m%d")
+    local log_file=$(ls -t "$BASE_DIR/Logs/"mission_"$date_file"* 2>/dev/null | head -n 1)
+
     echo -e "${BORDER}│${NC} ${HEADER}MISSION:${NC} ${TEXT}$mission${NC}"
     echo -e "${BORDER}│${NC} ${STATUS}STATUS :${NC} ${BOLD}⟳ Running...${NC}"
     echo -e "${BORDER}${BOX_MID}${NC}"
 
     # Agents status initialization
     draw_progress "Agent EU" 3 "${P}" "${P}" "⟳ Thinking"
-    draw_progress "Agent US" 0 "${NC}" "${A_US}" "░ Pending"
-    draw_progress "Agent CN" 0 "${NC}" "${A_CN}" "░ Pending"
+    draw_progress "Agent US" 0 "${NC}" "${A_US}" "░ Waiting"
+    draw_progress "Agent CN" 3 "${A_CN}" "${A_CN}" "⟳ Thinking"
     echo -e "${BORDER}${BOX_MID}${NC}"
+    echo -e "  ${HEADER}${BOLD}LIVE FEED:${NC}"
     
-    # Run Orchestrator and capture output
-    local log_file=$("$ORCHESTRATOR" "$mission" | grep "Log saved to:" | awk '{print $NF}')
+    # Run Orchestrator in BACKGROUND
+    "$ORCHESTRATOR" "$mission" > /tmp/prim_last_run.txt 2>&1 &
+    local orch_pid=$!
     
-    # Update UI based on completion
+    # Monitor the run
+    while kill -0 $orch_pid 2>/dev/null; do
+        sleep 2
+        # Try to find the actual log file if not found yet
+        if [ -z "$log_file" ] || [ ! -f "$log_file" ]; then
+            log_file=$(grep "LOG_PATH:" /tmp/prim_last_run.txt | cut -d' ' -f2)
+        fi
+        
+        if [ ! -z "$log_file" ] && [ -f "$log_file" ]; then
+            # Show last few lines of log
+            tail -n 5 "$log_file" | grep -v "---" | sed "s/^/  /"
+        fi
+    done
+
+    # Final Update
     clear_screen
     draw_header
     echo -e "${BORDER}│${NC} ${HEADER}MISSION:${NC} ${TEXT}$mission${NC}"
@@ -73,19 +93,18 @@ run_mission() {
     draw_progress "Agent CN" 10 "${TEXT}" "${A_CN}" "✅ Ready"
     echo -e "${BORDER}${BOX_MID}${NC}"
     
-    # Live Output Section
-    echo -e "  ${HEADER}${BOLD}LIVE FEED:${NC}"
+    echo -e "  ${HEADER}${BOLD}FINAL OUTPUT:${NC}"
     if [ -f "$log_file" ]; then
-        tail -n 25 "$log_file" | grep -E "\[.* Response\]|Mission Genesis Complete" -A 5 | sed "s/^/  /" | sed "s/Response/${TEXT}Response${NC}/g"
+        tail -n 30 "$log_file" | grep -E "\[.* Response\]|Mission Complete" -A 10 | sed "s/^/  /"
     fi
     
     local end_time=$(date +%s.%N)
     local elapsed=$(echo "$end_time - $start_time" | bc)
     echo -e "${BORDER}${BOX_BOT}${NC}"
-    printf "  ${BORDER}execution time [${HEADER}%.2fs${NC}${BORDER}] | log: %s${NC}\n\n" "$elapsed" "$(basename $log_file)"
+    printf "  ${BORDER}execution time [${HEADER}%.2fs${NC}${BORDER}] | log: %s${NC}\n\n" "$elapsed" "$(basename "$log_file")"
 }
 
-# Main Loop
+# Main Loop (même logique pour l'entrée)
 if [ ! -z "$1" ]; then
     run_mission "$1"
 else
@@ -96,31 +115,10 @@ else
         echo -e "${BORDER}${BOX_BOT}${NC}"
         echo -n -e "${P}prim> ${NC}"
         read input
-        
         case $input in
-            exit)
-                echo -e "${TEXT}Goodbye, Orchestrator.${NC}"
-                exit 0
-                ;;
-            help)
-                echo -e "${B}Commands:${NC} mission \"desc\" | exit | help"
-                echo -e "Or just type your mission directly."
-                sleep 2
-                ;;
-            mission\ *)
-                mission_desc=$(echo $input | cut -d' ' -f2-)
-                run_mission "$mission_desc"
-                echo -n -e "${TEXT}Press enter to return...${NC}"
-                read
-                ;;
-            *)
-                # Default: Treat any unknown command as a mission
-                if [ ! -z "$input" ]; then
-                    run_mission "$input"
-                    echo -n -e "${TEXT}Press enter to return...${NC}"
-                    read
-                fi
-                ;;
+            exit) exit 0 ;;
+            help) echo "Tape ta mission direct."; sleep 2 ;;
+            *) [ ! -z "$input" ] && run_mission "$input" && echo -n "Press enter..." && read ;;
         esac
     done
 fi

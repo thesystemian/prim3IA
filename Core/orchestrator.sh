@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# PRIM Orchestrator - Parallel Ollama Integration
+# PRIM Orchestrator - Optimized Parallel Integration
 # Usage: ./Core/orchestrator.sh "Mission Name"
 
 MISSION="$1"
@@ -23,7 +23,10 @@ if [ -z "$MISSION" ]; then
     exit 1
 fi
 
-echo -e "${PURPLE}🐉 PRIM ORCHESTRATOR - PARALLEL MISSION${NC}" | tee -a "$LOG_FILE"
+# IMPORTANT: Print the log file path immediately for TUI to catch it
+echo "LOG_PATH: $LOG_FILE"
+
+echo -e "${PURPLE}🐉 PRIM ORCHESTRATOR - OPTIMIZED PARALLEL${NC}" | tee -a "$LOG_FILE"
 echo -e "Mission : $MISSION" | tee -a "$LOG_FILE"
 echo -e "Time    : $TIMESTAMP" | tee -a "$LOG_FILE"
 echo "------------------------------------------" | tee -a "$LOG_FILE"
@@ -33,11 +36,8 @@ execute_agent() {
     local name=$2
     local model=$3
     local prompt_file="$BASE_DIR/Config/AgentPrompts/${id}Prompt.md"
-    
-    # Read System Prompt
     local system_prompt=$(cat "$prompt_file")
     
-    # Call Ollama API
     local response=$(curl -s -X POST http://localhost:11434/api/generate \
         -d "{
             \"model\": \"$model\",
@@ -46,9 +46,8 @@ execute_agent() {
             \"stream\": false
         }")
     
-    local text=$(echo "$response" | jq -r '.response' 2>/dev/null || echo "Error: No response")
+    local text=$(echo "$response" | jq -r '.response' 2>/dev/null || echo "Error: No response from Ollama")
     
-    # Write to a temporary file then append to log to avoid race conditions
     {
         echo -e "${CYAN}[$name Response]:${NC}"
         echo "$text"
@@ -56,16 +55,15 @@ execute_agent() {
     } >> "$LOG_FILE"
 }
 
-# Run the Trinity IN PARALLEL
+# PHASE 1: EU (Creative) & CN (Technical) in parallel
 execute_agent "eu" "EU" "mistral:latest" &
 PID_EU=$!
-execute_agent "us" "US" "mistral:latest" &
-PID_US=$!
 execute_agent "cn" "CN" "deepseek-coder:latest" &
 PID_CN=$!
 
-# Wait for all agents to finish
-wait $PID_EU $PID_US $PID_CN
+wait $PID_EU $PID_CN
 
-echo -e "${PURPLE}[PRIM]${NC} ${GREEN}Parallel Mission Complete.${NC}" | tee -a "$LOG_FILE"
-echo -e "Log saved to: $LOG_FILE"
+# PHASE 2: US (Logic/Validation) starts after receiving inputs
+execute_agent "us" "US" "mistral:latest"
+
+echo -e "${PURPLE}[PRIM]${NC} ${GREEN}Mission Complete.${NC}" | tee -a "$LOG_FILE"
