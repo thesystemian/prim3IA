@@ -77,8 +77,8 @@ run_mission() {
         fi
         
         if [ ! -z "$log_file" ] && [ -f "$log_file" ]; then
-            # Show last few lines of log
-            tail -n 5 "$log_file" | grep -v "---" | sed "s/^/  /"
+            # Show last few lines of log, excluding separators
+            tail -n 5 "$log_file" | grep -v -- "---" | sed "s/^/  /"
         fi
     done
 
@@ -95,7 +95,8 @@ run_mission() {
     
     echo -e "  ${HEADER}${BOLD}FINAL OUTPUT:${NC}"
     if [ -f "$log_file" ]; then
-        tail -n 30 "$log_file" | grep -E "\[.* Response\]|Mission Complete" -A 10 | sed "s/^/  /"
+        # Ensure we don't treat [ as an option for grep
+        tail -n 30 "$log_file" | grep -E -- "\[.* Response\]|Mission Complete" -A 15 | sed "s/^/  /"
     fi
     
     local end_time=$(date +%s.%N)
