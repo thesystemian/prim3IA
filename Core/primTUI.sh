@@ -1,16 +1,18 @@
 #!/bin/bash
 
-# PRIM Terminal UI (TUI) - Morandi Edition
-# A harmonic, watercolor-style monitoring interface
+# PRIM Terminal UI (TUI) - Morandi Refined Edition
+# Harmonic palette with high readability contrast
 
-# Morandi Color Palette (ANSI 256 colors)
-P='\033[38;5;131m'   # Terracotta (PRIM Title)
-A='\033[38;5;66m'    # Blue-Gray (Agents)
-PB='\033[38;5;137m'  # Yellow Ocre (Progress Bar)
-S='\033[38;5;188m'   # Soft Beige (Success/Text)
-B='\033[38;5;60m'    # Muted Blue (Info)
-Y='\033[38;5;137m'   # Ocre (Warning)
-NC='\033[0m'         # No Color
+# Morandi Refined Palette (ANSI 256 colors)
+BORDER='\033[38;5;244m'  # Soft Gray
+HEADER='\033[38;5;179m'  # Warm Yellow (MISSION)
+STATUS='\033[38;5;180m'  # Soft Ocre (STATUS)
+TEXT='\033[38;5;252m'    # Light Gray (Readable Text)
+P='\033[38;5;167m'       # Soft Red Terracotta (PRIM/EU)
+A_US='\033[38;5;109m'    # Soft Blue-Gray (US Agent)
+A_CN='\033[38;5;179m'    # Warm Yellow-Ocre (CN Agent)
+BAR_FG='\033[38;5;224m'  # Beige (Active Progress)
+NC='\033[0m'             # No Color
 BOLD='\033[1m'
 
 # Assets
@@ -24,20 +26,21 @@ ORCHESTRATOR="$BASE_DIR/Core/orchestrator.sh"
 clear_screen() { printf "\033[H\033[J"; }
 
 draw_header() {
-    echo -e "${P}${BOX_TOP}${NC}"
-    echo -e "${P}│${NC}  ${BOLD}🐉 PRIM ORCHESTRATOR v1.1${NC}                           ${P}│${NC}"
-    echo -e "${P}${BOX_MID}${NC}"
+    echo -e "${BORDER}${BOX_TOP}${NC}"
+    echo -e "${BORDER}│${NC}  ${P}${BOLD}🐉 PRIM ORCHESTRATOR v1.2${NC}                           ${BORDER}│${NC}"
+    echo -e "${BORDER}${BOX_MID}${NC}"
 }
 
 draw_progress() {
     local label=$1
     local progress=$2 # 0 to 10
     local color=$3
+    local agent_color=$4
     local bar=""
     for ((i=0; i<10; i++)); do
-        [ $i -lt $progress ] && bar="${bar}▌" || bar="${bar}░"
+        [ $i -lt $progress ] && bar="${bar}${BAR_FG}▌${NC}" || bar="${bar}${BORDER}░${NC}"
     done
-    printf "${P}│${NC} ${A}%-10s${NC} ${PB}[%-10s]${NC} %s %-12s ${P}│${NC}\n" "$label" "$bar" "$color" "$4"
+    printf "${BORDER}│${NC} ${agent_color}%-10s${NC} [${bar}] ${color}%-12s${NC} ${BORDER}│${NC}\n" "$label" "$5"
 }
 
 run_mission() {
@@ -46,15 +49,15 @@ run_mission() {
     clear_screen
     draw_header
     
-    echo -e "${P}│${NC} ${B}MISSION:${NC} ${S}$mission${NC}"
-    echo -e "${P}│${NC} ${B}STATUS :${NC} ${Y}⟳ Running...${NC}"
-    echo -e "${P}${BOX_MID}${NC}"
+    echo -e "${BORDER}│${NC} ${HEADER}MISSION:${NC} ${TEXT}$mission${NC}"
+    echo -e "${BORDER}│${NC} ${STATUS}STATUS :${NC} ${BOLD}⟳ Running...${NC}"
+    echo -e "${BORDER}${BOX_MID}${NC}"
 
     # Agents status initialization
-    draw_progress "Agent EU" 3 "${Y}" "⟳ Thinking"
-    draw_progress "Agent US" 0 "${NC}" "░ Pending"
-    draw_progress "Agent CN" 0 "${NC}" "░ Pending"
-    echo -e "${P}${BOX_MID}${NC}"
+    draw_progress "Agent EU" 3 "${P}" "${P}" "⟳ Thinking"
+    draw_progress "Agent US" 0 "${NC}" "${A_US}" "░ Pending"
+    draw_progress "Agent CN" 0 "${NC}" "${A_CN}" "░ Pending"
+    echo -e "${BORDER}${BOX_MID}${NC}"
     
     # Run Orchestrator and capture output
     local log_file=$("$ORCHESTRATOR" "$mission" | grep "Log saved to:" | awk '{print $NF}')
@@ -62,25 +65,24 @@ run_mission() {
     # Update UI based on completion
     clear_screen
     draw_header
-    echo -e "${P}│${NC} ${B}MISSION:${NC} ${S}$mission${NC}"
-    echo -e "${P}│${NC} ${S}STATUS :${NC} ${S}✅ Complete${NC}"
-    echo -e "${P}${BOX_MID}${NC}"
-    draw_progress "Agent EU" 10 "${S}" "✅ Ready"
-    draw_progress "Agent US" 10 "${S}" "✅ Ready"
-    draw_progress "Agent CN" 10 "${S}" "✅ Ready"
-    echo -e "${P}${BOX_MID}${NC}"
+    echo -e "${BORDER}│${NC} ${HEADER}MISSION:${NC} ${TEXT}$mission${NC}"
+    echo -e "${BORDER}│${NC} ${STATUS}STATUS :${NC} ${TEXT}✅ Complete${NC}"
+    echo -e "${BORDER}${BOX_MID}${NC}"
+    draw_progress "Agent EU" 10 "${TEXT}" "${P}" "✅ Ready"
+    draw_progress "Agent US" 10 "${TEXT}" "${A_US}" "✅ Ready"
+    draw_progress "Agent CN" 10 "${TEXT}" "${A_CN}" "✅ Ready"
+    echo -e "${BORDER}${BOX_MID}${NC}"
     
     # Live Output Section
-    echo -e "  ${A}${BOLD}LIVE FEED:${NC}"
+    echo -e "  ${HEADER}${BOLD}LIVE FEED:${NC}"
     if [ -f "$log_file" ]; then
-        # Muted text for live feed
-        tail -n 20 "$log_file" | grep -E "\[.* Response\]|Mission Genesis Complete" -A 5 | sed "s/^/  /" | sed "s/Response/${S}Response${NC}/g"
+        tail -n 25 "$log_file" | grep -E "\[.* Response\]|Mission Genesis Complete" -A 5 | sed "s/^/  /" | sed "s/Response/${TEXT}Response${NC}/g"
     fi
     
     local end_time=$(date +%s.%N)
     local elapsed=$(echo "$end_time - $start_time" | bc)
-    echo -e "${P}${BOX_BOT}${NC}"
-    printf "  ${A}execution time [${S}%.2fs${NC}${A}] | log: %s${NC}\n\n" "$elapsed" "$(basename $log_file)"
+    echo -e "${BORDER}${BOX_BOT}${NC}"
+    printf "  ${BORDER}execution time [${HEADER}%.2fs${NC}${BORDER}] | log: %s${NC}\n\n" "$elapsed" "$(basename $log_file)"
 }
 
 # Main Loop
@@ -90,8 +92,8 @@ else
     while true; do
         clear_screen
         draw_header
-        echo -e "${P}│${NC} ${B}COMMANDS:${NC} ${A}mission \"desc\" | help | exit${NC}             ${P}│${NC}"
-        echo -e "${P}${BOX_BOT}${NC}"
+        echo -e "${BORDER}│${NC} ${STATUS}COMMANDS:${NC} ${TEXT}mission \"desc\" | help | exit${NC}             ${BORDER}│${NC}"
+        echo -e "${BORDER}${BOX_BOT}${NC}"
         echo -n -e "${P}prim> ${NC}"
         read input
         
@@ -99,15 +101,15 @@ else
             mission\ *)
                 mission_desc=$(echo $input | cut -d' ' -f2-)
                 run_mission "$mission_desc"
-                echo -n -e "${A}Press enter to return...${NC}"
+                echo -n -e "${TEXT}Press enter to return...${NC}"
                 read
                 ;;
             exit)
-                echo -e "${A}Goodbye, Orchestrator.${NC}"
+                echo -e "${TEXT}Goodbye, Orchestrator.${NC}"
                 exit 0
                 ;;
             *)
-                echo -e "${Y}Invalid command.${NC} Try: mission \"your mission\""
+                echo -e "${STATUS}Invalid command.${NC} Try: mission \"your mission\""
                 sleep 1
                 ;;
         esac
