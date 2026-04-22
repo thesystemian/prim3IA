@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# PRIM Orchestrator - Real Ollama Integration
+# PRIM Orchestrator - Parallel Ollama Integration
 # Usage: ./Core/orchestrator.sh "Mission Name"
 
 MISSION="$1"
@@ -23,7 +23,7 @@ if [ -z "$MISSION" ]; then
     exit 1
 fi
 
-echo -e "${PURPLE}🐉 PRIM ORCHESTRATOR - REAL MISSION${NC}" | tee -a "$LOG_FILE"
+echo -e "${PURPLE}🐉 PRIM ORCHESTRATOR - PARALLEL MISSION${NC}" | tee -a "$LOG_FILE"
 echo -e "Mission : $MISSION" | tee -a "$LOG_FILE"
 echo -e "Time    : $TIMESTAMP" | tee -a "$LOG_FILE"
 echo "------------------------------------------" | tee -a "$LOG_FILE"
@@ -33,8 +33,6 @@ execute_agent() {
     local name=$2
     local model=$3
     local prompt_file="$BASE_DIR/Config/AgentPrompts/${id}Prompt.md"
-    
-    echo -e "${PURPLE}[PRIM]${NC} Calling Agent ${GREEN}$name${NC} ($model)..." | tee -a "$LOG_FILE"
     
     # Read System Prompt
     local system_prompt=$(cat "$prompt_file")
@@ -50,14 +48,24 @@ execute_agent() {
     
     local text=$(echo "$response" | jq -r '.response' 2>/dev/null || echo "Error: No response")
     
-    echo -e "${CYAN}[$name Response]:${NC}\n$text" | tee -a "$LOG_FILE"
-    echo "------------------------------------------" | tee -a "$LOG_FILE"
+    # Write to a temporary file then append to log to avoid race conditions
+    {
+        echo -e "${CYAN}[$name Response]:${NC}"
+        echo "$text"
+        echo "------------------------------------------"
+    } >> "$LOG_FILE"
 }
 
-# Run the Trinity with Real Models
-execute_agent "eu" "EU" "mistral:latest"
-execute_agent "us" "US" "mistral:latest"
-execute_agent "cn" "CN" "deepseek-coder:latest"
+# Run the Trinity IN PARALLEL
+execute_agent "eu" "EU" "mistral:latest" &
+PID_EU=$!
+execute_agent "us" "US" "mistral:latest" &
+PID_US=$!
+execute_agent "cn" "CN" "deepseek-coder:latest" &
+PID_CN=$!
 
-echo -e "${PURPLE}[PRIM]${NC} ${GREEN}First Real Mission Complete.${NC}" | tee -a "$LOG_FILE"
+# Wait for all agents to finish
+wait $PID_EU $PID_US $PID_CN
+
+echo -e "${PURPLE}[PRIM]${NC} ${GREEN}Parallel Mission Complete.${NC}" | tee -a "$LOG_FILE"
 echo -e "Log saved to: $LOG_FILE"
