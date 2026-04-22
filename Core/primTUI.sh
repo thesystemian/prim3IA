@@ -98,19 +98,28 @@ else
         read input
         
         case $input in
+            exit)
+                echo -e "${TEXT}Goodbye, Orchestrator.${NC}"
+                exit 0
+                ;;
+            help)
+                echo -e "${B}Commands:${NC} mission \"desc\" | exit | help"
+                echo -e "Or just type your mission directly."
+                sleep 2
+                ;;
             mission\ *)
                 mission_desc=$(echo $input | cut -d' ' -f2-)
                 run_mission "$mission_desc"
                 echo -n -e "${TEXT}Press enter to return...${NC}"
                 read
                 ;;
-            exit)
-                echo -e "${TEXT}Goodbye, Orchestrator.${NC}"
-                exit 0
-                ;;
             *)
-                echo -e "${STATUS}Invalid command.${NC} Try: mission \"your mission\""
-                sleep 1
+                # Default: Treat any unknown command as a mission
+                if [ ! -z "$input" ]; then
+                    run_mission "$input"
+                    echo -n -e "${TEXT}Press enter to return...${NC}"
+                    read
+                fi
                 ;;
         esac
     done
