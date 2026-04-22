@@ -1,0 +1,43 @@
+# PRIM Ollama Configuration
+# Local endpoints for the Trinity Intelligence System
+
+# --- Model Selection Rationale ---
+# EU (Mistral:7b): Chosen for creative reasoning, linguistic fluidity, and narrative depth.
+# CN (DeepSeek-Coder:6.7b): Selected for technical precision, script execution, and coding logic.
+# US (Mistral:7b Fallback): Local logic/validation engine used when cloud agents are unreachable.
+
+# --- Fallback Strategy ---
+# If Ollama is unavailable: 
+# 1. System logs "LOCAL_OLLAMA_OFFLINE".
+# 2. Orchestrator switches to "SIMULATION_MODE" (Echo-only) to prevent crash.
+# 3. Warning notification sent to Orchestrator (Dax).
+
+agents:
+  EU:
+    model: "mistral:7b"
+    endpoint: "http://localhost:11434/api/generate"
+    options:
+      temperature: 0.8  # Higher for divergent thinking
+      num_ctx: 8192
+      role: "Creative Perspective"
+
+  CN:
+    model: "deepseek-coder:6.7b"
+    endpoint: "http://localhost:11434/api/generate"
+    options:
+      temperature: 0.1  # Low for deterministic execution
+      num_ctx: 16384
+      role: "Execution Focus"
+
+  US:
+    model: "mistral:7b"
+    endpoint: "http://localhost:11434/api/generate"
+    options:
+      temperature: 0.3  # Low for logic validation
+      num_ctx: 8192
+      role: "Logic Validation"
+
+# --- Connection Test Commands (CURL) ---
+# Check Ollama Status: curl http://localhost:11434/api/tags
+# Test EU: curl -X POST http://localhost:11434/api/generate -d '{"model": "mistral:7b", "prompt": "EU test", "stream": false}'
+# Test CN: curl -X POST http://localhost:11434/api/generate -d '{"model": "deepseek-coder:6.7b", "prompt": "CN test", "stream": false}'
