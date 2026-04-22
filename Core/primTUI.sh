@@ -1,15 +1,16 @@
 #!/bin/bash
 
-# PRIM Terminal UI (TUI)
-# A refined monitoring interface for the Trinity Intelligence System
+# PRIM Terminal UI (TUI) - Morandi Edition
+# A harmonic, watercolor-style monitoring interface
 
-# Colors & Styles
-P='\033[1;35m' # Purple (PRIM)
-G='\033[1;32m' # Green (Success)
-Y='\033[1;33m' # Yellow (Warning)
-B='\033[1;34m' # Blue (Info)
-R='\033[1;31m' # Red (Error)
-NC='\033[0m'   # No Color
+# Morandi Color Palette (ANSI 256 colors)
+P='\033[38;5;131m'   # Terracotta (PRIM Title)
+A='\033[38;5;66m'    # Blue-Gray (Agents)
+PB='\033[38;5;137m'  # Yellow Ocre (Progress Bar)
+S='\033[38;5;188m'   # Soft Beige (Success/Text)
+B='\033[38;5;60m'    # Muted Blue (Info)
+Y='\033[38;5;137m'   # Ocre (Warning)
+NC='\033[0m'         # No Color
 BOLD='\033[1m'
 
 # Assets
@@ -24,7 +25,7 @@ clear_screen() { printf "\033[H\033[J"; }
 
 draw_header() {
     echo -e "${P}${BOX_TOP}${NC}"
-    echo -e "${P}│${NC}  ${BOLD}🐉 PRIM ORCHESTRATOR v1.0${NC}                           ${P}│${NC}"
+    echo -e "${P}│${NC}  ${BOLD}🐉 PRIM ORCHESTRATOR v1.1${NC}                           ${P}│${NC}"
     echo -e "${P}${BOX_MID}${NC}"
 }
 
@@ -36,7 +37,7 @@ draw_progress() {
     for ((i=0; i<10; i++)); do
         [ $i -lt $progress ] && bar="${bar}▌" || bar="${bar}░"
     done
-    printf "${P}│${NC} %-10s [%-10s] %s %-12s ${P}│${NC}\n" "$label" "$bar" "$color" "$4"
+    printf "${P}│${NC} ${A}%-10s${NC} ${PB}[%-10s]${NC} %s %-12s ${P}│${NC}\n" "$label" "$bar" "$color" "$4"
 }
 
 run_mission() {
@@ -45,8 +46,8 @@ run_mission() {
     clear_screen
     draw_header
     
-    echo -e "${P}│${NC} ${B}MISSION:${NC} $mission"
-    echo -e "${P}│${NC} ${B}STATUS :${NC} ⟳ Running..."
+    echo -e "${P}│${NC} ${B}MISSION:${NC} ${S}$mission${NC}"
+    echo -e "${P}│${NC} ${B}STATUS :${NC} ${Y}⟳ Running...${NC}"
     echo -e "${P}${BOX_MID}${NC}"
 
     # Agents status initialization
@@ -56,30 +57,30 @@ run_mission() {
     echo -e "${P}${BOX_MID}${NC}"
     
     # Run Orchestrator and capture output
-    # Note: We use the existing orchestrator logic but stream it here
     local log_file=$("$ORCHESTRATOR" "$mission" | grep "Log saved to:" | awk '{print $NF}')
     
     # Update UI based on completion
     clear_screen
     draw_header
-    echo -e "${P}│${NC} ${B}MISSION:${NC} $mission"
-    echo -e "${P}│${NC} ${G}STATUS :${NC} ✅ Complete"
+    echo -e "${P}│${NC} ${B}MISSION:${NC} ${S}$mission${NC}"
+    echo -e "${P}│${NC} ${S}STATUS :${NC} ${S}✅ Complete${NC}"
     echo -e "${P}${BOX_MID}${NC}"
-    draw_progress "Agent EU" 10 "${G}" "✅ Ready"
-    draw_progress "Agent US" 10 "${G}" "✅ Ready"
-    draw_progress "Agent CN" 10 "${G}" "✅ Ready"
+    draw_progress "Agent EU" 10 "${S}" "✅ Ready"
+    draw_progress "Agent US" 10 "${S}" "✅ Ready"
+    draw_progress "Agent CN" 10 "${S}" "✅ Ready"
     echo -e "${P}${BOX_MID}${NC}"
     
     # Live Output Section
-    echo -e "${BOLD}  LIVE FEED:${NC}"
+    echo -e "  ${A}${BOLD}LIVE FEED:${NC}"
     if [ -f "$log_file" ]; then
-        tail -n 20 "$log_file" | grep -E "\[.* Response\]|Mission Genesis Complete" -A 5 | sed "s/^/  /"
+        # Muted text for live feed
+        tail -n 20 "$log_file" | grep -E "\[.* Response\]|Mission Genesis Complete" -A 5 | sed "s/^/  /" | sed "s/Response/${S}Response${NC}/g"
     fi
     
     local end_time=$(date +%s.%N)
     local elapsed=$(echo "$end_time - $start_time" | bc)
     echo -e "${P}${BOX_BOT}${NC}"
-    printf "  execution time [${G}%.2fs${NC}] | log: %s\n\n" "$elapsed" "$(basename $log_file)"
+    printf "  ${A}execution time [${S}%.2fs${NC}${A}] | log: %s${NC}\n\n" "$elapsed" "$(basename $log_file)"
 }
 
 # Main Loop
@@ -89,20 +90,20 @@ else
     while true; do
         clear_screen
         draw_header
-        echo -e "${P}│${NC} ${B}COMMANDS:${NC} mission \"desc\" | help | exit             ${P}│${NC}"
+        echo -e "${P}│${NC} ${B}COMMANDS:${NC} ${A}mission \"desc\" | help | exit${NC}             ${P}│${NC}"
         echo -e "${P}${BOX_BOT}${NC}"
-        echo -n "prim> "
+        echo -n -e "${P}prim> ${NC}"
         read input
         
         case $input in
             mission\ *)
                 mission_desc=$(echo $input | cut -d' ' -f2-)
                 run_mission "$mission_desc"
-                echo -n "Press enter to return..."
+                echo -n -e "${A}Press enter to return...${NC}"
                 read
                 ;;
             exit)
-                echo "Goodbye, Orchestrator."
+                echo -e "${A}Goodbye, Orchestrator.${NC}"
                 exit 0
                 ;;
             *)
