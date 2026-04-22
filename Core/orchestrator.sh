@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# PRIM Orchestrator - Reliable JSON + Session Memory
+# PRIM Orchestrator - Unified Single-Agent Architecture
 # Usage: ./Core/orchestrator.sh "Mission Name"
 
 MISSION="$1"
@@ -9,16 +9,13 @@ DATE_FILE=$(date +"%Y%m%d_%H%M%S")
 BASE_DIR="$HOME/Prim3IA"
 LOG_DIR="$BASE_DIR/Logs"
 LOG_FILE="$LOG_DIR/mission_${DATE_FILE}.log"
-SESSION_FILE="$LOG_DIR/session_current.txt"
 
 # Colors
 PURPLE='\033[0;35m'
 GREEN='\033[0;32m'
-CYAN='\033[0;36m'
 NC='\033[0m'
 
 mkdir -p "$LOG_DIR"
-[ ! -f "$SESSION_FILE" ] && touch "$SESSION_FILE"
 
 if [ -z "$MISSION" ]; then
     echo -e "${PURPLE}[PRIM]${NC} Error: Mission argument required."
@@ -26,51 +23,45 @@ if [ -z "$MISSION" ]; then
 fi
 
 echo "LOG_PATH: $LOG_FILE"
-echo -e "${PURPLE}🐉 PRIM ORCHESTRATOR - INTELLIGENT PARALLEL${NC}" | tee -a "$LOG_FILE"
+echo -e "${PURPLE}🐉 PRIM ORCHESTRATOR - UNIFIED RESPONSE${NC}" | tee -a "$LOG_FILE"
 echo -e "Mission : $MISSION" | tee -a "$LOG_FILE"
 echo "------------------------------------------" | tee -a "$LOG_FILE"
 
-execute_agent() {
-    local id=$1
-    local name=$2
-    local model=$3
-    local prompt_file="$BASE_DIR/Config/AgentPrompts/${id}Prompt.md"
-    
-    # Construction du prompt avec mémoire
-    local system_prompt=$(cat "$prompt_file")
-    local history=$(tail -n 20 "$SESSION_FILE" 2>/dev/null) # 20 dernières lignes de mémoire
-    
-    local full_prompt="MISSION ACTUELLE: $MISSION\n\nCONTEXTE DE SESSION:\n$history"
+# Unified System Prompt
+SYSTEM_PROMPT="You are PRIM, an intelligent orchestration system created by Dax @thesystemian.
+When given a mission, you analyze it through THREE integrated perspectives:
 
-    # Appel Ollama avec jq pour un JSON parfait
-    local json_payload=$(jq -n \
-        --arg model "$model" \
-        --arg system "$system_prompt" \
-        --arg prompt "$full_prompt" \
-        '{model: $model, system: $system, prompt: $prompt, stream: false}')
+1. CREATIVE (EU Lens): Rare insight, unique angle, cultural/creative depth.
+2. LOGICAL (US Lens): Validate the approach, identify risks, contradictions, check feasibility.
+3. PRAGMATIC (CN Lens): 3-5 concrete execution steps, realistic timeline.
 
-    local response=$(curl -s -X POST http://localhost:11434/api/generate -d "$json_payload")
-    local text=$(echo "$response" | jq -r '.response' 2>/dev/null || echo "Error: No response")
-    
-    {
-        echo -e "${CYAN}[$name Response]:${NC}"
-        echo "$text"
-        echo "------------------------------------------"
-    } >> "$LOG_FILE"
-    
-    # Update Session Memory (async-safe append)
-    echo "Mission: $MISSION | Agent $name: ${text:0:100}..." >> "$SESSION_FILE"
-}
+OUTPUT FORMAT:
+[Creative Insight]
+└─ [1 sentence: rare angle]
 
-# PHASE 1: EU & CN
-execute_agent "eu" "EU" "mistral:latest" &
-PID_EU=$!
-execute_agent "cn" "CN" "deepseek-coder:latest" &
-PID_CN=$!
+[Validation]
+└─ [1-2 sentences: assessment + risks]
 
-wait $PID_EU $PID_CN
+[Execution Plan]
+└─ [3 concrete steps, numbered]
 
-# PHASE 2: US
-execute_agent "us" "US" "mistral:latest"
+[Final Recommendation]
+└─ [What to do next]
+
+Always respond in FRENCH. Keep output crisp and actionable. No verbosity."
+
+# Unified Call to Ollama
+json_payload=$(jq -n \
+    --arg model "mistral:latest" \
+    --arg system "$SYSTEM_PROMPT" \
+    --arg prompt "$MISSION" \
+    '{model: $model, system: $system, prompt: $prompt, stream: false}')
+
+response=$(curl -s -X POST http://localhost:11434/api/generate -d "$json_payload")
+text=$(echo "$response" | jq -r '.response' 2>/dev/null || echo "Error: No response")
+
+# Write to Log
+echo "$text" >> "$LOG_FILE"
+echo "------------------------------------------" >> "$LOG_FILE"
 
 echo -e "${PURPLE}[PRIM]${NC} ${GREEN}Mission Complete.${NC}" | tee -a "$LOG_FILE"
